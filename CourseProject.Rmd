@@ -11,7 +11,6 @@ output: html_document
 
 ##Enabling parallelization
 Before performing any analysis we 
-https://anastazie.github.io/anastazie/PracticalMachineLearning/CourseProject.html
 
 ```{r}
 library(doParallel);
@@ -21,34 +20,37 @@ registerDoParallel(rCluster);
 
 
 ##Cleaning data
-Before performing any analysis we 
-https://anastazie.github.io/anastazie/PracticalMachineLearning/CourseProject.html
+Data where cleaned by removing variables containing NA values and unnecessary variables ("timestamp", "X", "user_name", "new_window"). Cleaned data contained 54 variables
 
 ```{r}
 setwd("~/Documents/Coursera/PracticalMachineLearning/CourseProject")
-train <- read.csv("pml-training.csv", head=T, na.strings=c("NA",""))
-valid <- read.csv("pml-testing.csv", head=T, na.strings=c("NA",""))
-train2 <- train[,colSums(is.na(train)) == 0] 
+data <- read.csv("pml-training.csv", head=T, na.strings=c("NA",""))
+data2 <- data[,colSums(is.na(data)) == 0] 
+removeIndex <- grep("timestamp|X|user_name|new_window", names(data2))
+data3 <- data2[, -removeIndex]
 ```
 
 ##Creating training and testing datasets
+Data were divided into training and testing datasets by following scheme: 70% of data in training set and 30% of data in testing set.
+
 
 ```{r}
 library(caret)
 set.seed(17)
-trainL <- createDataPartition(y=train2$classe, p=0.7, list=FALSE)
-train3 <- train2[trainL,]
-test <- train2[-trainL,]
-dim(train3); dim(test)
+trainL <- createDataPartition(y=data3$classe, p=0.7, list=FALSE)
+train <- data3[trainL,]
+test <- data3[-trainL,]
+dim(train); dim(test)
 ```
+Training set contained `r nrow(train)` observations, testing set contained `r nrow(test)` observations.
 
 ##Fitting linear regression model
 
 ```{r}
 set.seed(17)
-modFitAll<- train(classe ~ .,data=train3,method="rf", trControl = trainControl(method = "cv", allowParallel =TRUE))
+modFitAll<- train(classe ~ .,data=train,method="rf", trControl = trainControl(method = "cv", number=4))
 pred <- predict(modFitAll, test)
-modFitAll
+modFitAll$results
 cfM <- confusionMatrix(pred, test$classe)
 cfM$table
 ```
@@ -56,13 +58,30 @@ cfM$table
 
 ```{r}
 set.seed(17)
-modFitAll<- train(classe ~ .,data=train3,method="rf",  trControl = trainControl(method = "cv", allowParallel =TRUE))
-pred <- predict(modFitAll, test)
-qplot(classe,pred,data=test)
+valid <- read.csv("pml-testing.csv", head=T, na.strings=c("NA",""))
+valid2 <- valid[,colnames(valid)%in%colnames(train)] 
+pred2 <- predict(modFitAll, valid2)
+valid3 <- valid2
+valid3$classe <- pred2
+
+pml_write_files = function(x) {
+    n = length(x)
+    for (i in 1:n) {
+        filename = paste0("problem_id_", i, ".txt")
+        write.table(x[i], file = filename, quote = FALSE, row.names = FALSE, 
+            col.names = FALSE)
+    }
+}
+
+
+answers <- as.character(valid3$classe)
+
+pml_write_files(answers)
+answers
 
 ```
 
 ##Conclusion
 
 ##References
-
+[1] Ugulino, Wallace, et al. "Wearable computing: accelerometers’ data classification of body postures and movements." Advances in Artificial Intelligence-SBIA 2012. Springer Berlin Heidelberg, 2012. 52-61.

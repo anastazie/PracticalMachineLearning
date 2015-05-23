@@ -58,25 +58,101 @@ if (window.hljs && document.readyState && document.readyState === "complete") {
 </div>
 
 
+<div id="abstract" class="section level2">
+<h2>Abstract</h2>
+</div>
+<div id="introduction" class="section level2">
+<h2>Introduction</h2>
+</div>
+<div id="enabling-parallelization" class="section level2">
+<h2>Enabling parallelization</h2>
+<p>Before performing any analysis we</p>
+<pre class="r"><code>library(doParallel);</code></pre>
+<pre><code>## Loading required package: foreach
+## Loading required package: iterators
+## Loading required package: parallel</code></pre>
+<pre class="r"><code>rCluster &lt;- makePSOCKcluster(4);
+registerDoParallel(rCluster);</code></pre>
+</div>
 <div id="cleaning-data" class="section level2">
 <h2>Cleaning data</h2>
-<p><a href="https://anastazie.github.io/anastazie/PracticalMachineLearning/CourseProject.html">https://anastazie.github.io/anastazie/PracticalMachineLearning/CourseProject.html</a></p>
+<p>Data where cleaned by removing variables containing NA values and unnecessary variables (“timestamp”, “X”, “user_name”, “new_window”). Cleaned data contained 54 variables</p>
 <pre class="r"><code>setwd(&quot;~/Documents/Coursera/PracticalMachineLearning/CourseProject&quot;)
-train &lt;- read.csv(&quot;pml-training.csv&quot;, head=T, na.strings=c(&quot;NA&quot;,&quot;&quot;))
-valid &lt;- read.csv(&quot;pml-testing.csv&quot;, head=T, na.strings=c(&quot;NA&quot;,&quot;&quot;))
-train2 &lt;- train[,colSums(is.na(train)) == 0] </code></pre>
+data &lt;- read.csv(&quot;pml-training.csv&quot;, head=T, na.strings=c(&quot;NA&quot;,&quot;&quot;))
+data2 &lt;- data[,colSums(is.na(data)) == 0] 
+removeIndex &lt;- grep(&quot;timestamp|X|user_name|new_window&quot;, names(data2))
+data3 &lt;- data2[, -removeIndex]</code></pre>
 </div>
 <div id="creating-training-and-testing-datasets" class="section level2">
 <h2>Creating training and testing datasets</h2>
+<p>Data were divided into training and testing datasets by following scheme: 70% of data in training set and 30% of data in testing set.</p>
 <pre class="r"><code>library(caret)</code></pre>
 <pre><code>## Loading required package: lattice
 ## Loading required package: ggplot2</code></pre>
-<pre class="r"><code>trainL &lt;- createDataPartition(y=train2$classe, p=0.6, list=FALSE)
-train3 &lt;- train2[trainL,]
-test &lt;- train2[-trainL,]
-dim(train3); dim(test)</code></pre>
-<pre><code>## [1] 11776    60</code></pre>
-<pre><code>## [1] 7846   60</code></pre>
+<pre class="r"><code>set.seed(17)
+trainL &lt;- createDataPartition(y=data3$classe, p=0.7, list=FALSE)
+train &lt;- data3[trainL,]
+test &lt;- data3[-trainL,]
+dim(train); dim(test)</code></pre>
+<pre><code>## [1] 13737    54</code></pre>
+<pre><code>## [1] 5885   54</code></pre>
+<p>Training set contained 13737 observations, testing set contained 5885 observations.</p>
+</div>
+<div id="fitting-linear-regression-model" class="section level2">
+<h2>Fitting linear regression model</h2>
+<pre class="r"><code>set.seed(17)
+modFitAll&lt;- train(classe ~ .,data=train,method=&quot;rf&quot;, trControl = trainControl(method = &quot;cv&quot;, number=4))</code></pre>
+<pre><code>## Loading required package: randomForest
+## randomForest 4.6-10
+## Type rfNews() to see new features/changes/bug fixes.</code></pre>
+<pre class="r"><code>pred &lt;- predict(modFitAll, test)
+modFitAll$results</code></pre>
+<pre><code>##   mtry  Accuracy     Kappa   AccuracySD      KappaSD
+## 1    2 0.9919926 0.9898699 0.0011013770 0.0013931410
+## 2   27 0.9965056 0.9955797 0.0007142862 0.0009034907
+## 3   53 0.9927203 0.9907913 0.0010370931 0.0013119768</code></pre>
+<pre class="r"><code>cfM &lt;- confusionMatrix(pred, test$classe)
+cfM$table</code></pre>
+<pre><code>##           Reference
+## Prediction    A    B    C    D    E
+##          A 1674    0    0    0    0
+##          B    0 1137    2    0    0
+##          C    0    1 1021    2    0
+##          D    0    1    3  961    2
+##          E    0    0    0    1 1080</code></pre>
+</div>
+<div id="predicting-values-of-validation-set" class="section level2">
+<h2>Predicting values of validation set</h2>
+<pre class="r"><code>set.seed(17)
+valid &lt;- read.csv(&quot;pml-testing.csv&quot;, head=T, na.strings=c(&quot;NA&quot;,&quot;&quot;))
+valid2 &lt;- valid[,colnames(valid)%in%colnames(train)] 
+pred2 &lt;- predict(modFitAll, valid2)
+valid3 &lt;- valid2
+valid3$classe &lt;- pred2
+
+pml_write_files = function(x) {
+    n = length(x)
+    for (i in 1:n) {
+        filename = paste0(&quot;problem_id_&quot;, i, &quot;.txt&quot;)
+        write.table(x[i], file = filename, quote = FALSE, row.names = FALSE, 
+            col.names = FALSE)
+    }
+}
+
+
+answers &lt;- as.character(valid3$classe)
+
+pml_write_files(answers)
+answers</code></pre>
+<pre><code>##  [1] &quot;B&quot; &quot;A&quot; &quot;B&quot; &quot;A&quot; &quot;A&quot; &quot;E&quot; &quot;D&quot; &quot;B&quot; &quot;A&quot; &quot;A&quot; &quot;B&quot; &quot;C&quot; &quot;B&quot; &quot;A&quot; &quot;E&quot; &quot;E&quot; &quot;A&quot;
+## [18] &quot;B&quot; &quot;B&quot; &quot;B&quot;</code></pre>
+</div>
+<div id="conclusion" class="section level2">
+<h2>Conclusion</h2>
+</div>
+<div id="references" class="section level2">
+<h2>References</h2>
+<p>[1] Ugulino, Wallace, et al. “Wearable computing: accelerometers’ data classification of body postures and movements.” Advances in Artificial Intelligence-SBIA 2012. Springer Berlin Heidelberg, 2012. 52-61.</p>
 </div>
 
 
