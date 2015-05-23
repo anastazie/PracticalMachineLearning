@@ -9,7 +9,19 @@ output: html_document
 
 ##Introduction
 
+##Enabling parallelization
+Before performing any analysis we 
+https://anastazie.github.io/anastazie/PracticalMachineLearning/CourseProject.html
+
+```{r}
+library(doParallel);
+rCluster <- makePSOCKcluster(4);
+registerDoParallel(rCluster);
+```
+
+
 ##Cleaning data
+Before performing any analysis we 
 https://anastazie.github.io/anastazie/PracticalMachineLearning/CourseProject.html
 
 ```{r}
@@ -24,7 +36,7 @@ train2 <- train[,colSums(is.na(train)) == 0]
 ```{r}
 library(caret)
 set.seed(17)
-trainL <- createDataPartition(y=train2$classe, p=0.6, list=FALSE)
+trainL <- createDataPartition(y=train2$classe, p=0.7, list=FALSE)
 train3 <- train2[trainL,]
 test <- train2[-trainL,]
 dim(train3); dim(test)
@@ -34,10 +46,22 @@ dim(train3); dim(test)
 
 ```{r}
 set.seed(17)
-modFitAll<- train(classe ~ .,data=train3,method="rf", tuneLength=10, trControl = trainControl(method = "cv"))
+modFitAll<- train(classe ~ .,data=train3,method="rf", trControl = trainControl(method = "cv", allowParallel =TRUE))
+pred <- predict(modFitAll, test)
+modFitAll
+cfM <- confusionMatrix(pred, test$classe)
+cfM$table
+```
+##Predicting values of validation set
+
+```{r}
+set.seed(17)
+modFitAll<- train(classe ~ .,data=train3,method="rf",  trControl = trainControl(method = "cv", allowParallel =TRUE))
 pred <- predict(modFitAll, test)
 qplot(classe,pred,data=test)
+
 ```
+
 ##Conclusion
 
 ##References
