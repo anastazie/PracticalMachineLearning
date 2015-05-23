@@ -8,7 +8,10 @@ output: html_document
 
 
 ```{r}
-
+setwd("~/Documents/Coursera/PracticalMachineLearning/CourseProject")
+train <- read.csv("pml-training.csv", head=T)
+test <- read.csv("pml-testing.csv", head=T)
+train2 <- train[,colSums(is.na(train)) == 0] 
 ```
 
 You can also embed plots, for example:
