@@ -5,22 +5,16 @@ date: "23.5.2015"
 output: html_document
 ---
 
-##Abstract
-
 ##Introduction
+Data about personal activity were collected using following devices: Jawbone Up, Nike FuelBand, and Fitbit. For the current project, measurements from accelerometers on the belt, forearm, arm, and dumbell of 6 healthy participantsaged between 20-28 [1]. Participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).
+Aim of this project was to predict using available measurements, whether exercices were performed correctly.
 
-##Enabling parallelization
-Before performing any analysis we 
-
-```{r}
-library(doParallel);
-rCluster <- makePSOCKcluster(4);
-registerDoParallel(rCluster);
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache=TRUE)
 ```
 
-
 ##Cleaning data
-Data where cleaned by removing variables containing NA values and unnecessary variables ("timestamp", "X", "user_name", "new_window"). Cleaned data contained 54 variables
+Data where cleaned by removing variables containing NA values and unnecessary variables ("timestamp", "X", "user_name", "new_window"). 
 
 ```{r}
 setwd("~/Documents/Coursera/PracticalMachineLearning/CourseProject")
@@ -30,9 +24,10 @@ removeIndex <- grep("timestamp|X|user_name|new_window", names(data2))
 data3 <- data2[, -removeIndex]
 ```
 
+Cleaned data contained `r ncol(data3)` variables.
+
 ##Creating training and testing datasets
 Data were divided into training and testing datasets by following scheme: 70% of data in training set and 30% of data in testing set.
-
 
 ```{r}
 library(caret)
@@ -40,21 +35,44 @@ set.seed(17)
 trainL <- createDataPartition(y=data3$classe, p=0.7, list=FALSE)
 train <- data3[trainL,]
 test <- data3[-trainL,]
-dim(train); dim(test)
+dim(train) 
+dim(test)
 ```
+
 Training set contained `r nrow(train)` observations, testing set contained `r nrow(test)` observations.
 
-##Fitting linear regression model
+##Fitting random forest model
+Random forest model was fitted on taining data using 4-fold cross-validation.
+Cross-tabulation of observed and predicted values for testing dataset was also created.
 
 ```{r}
 set.seed(17)
 modFitAll<- train(classe ~ .,data=train,method="rf", trControl = trainControl(method = "cv", number=4))
+print(modFitAll, digits = 3)
 pred <- predict(modFitAll, test)
-modFitAll$results
 cfM <- confusionMatrix(pred, test$classe)
 cfM$table
 ```
+
+Best model was selected according to the accuracy value and contained 27 out of 53 predictors.
+As can be seen from confusion matrix, almost all predictions were correct (`r nrow(test) - 12` correct prediction out of `r nrow(test)`).
+
+##Out-of-sample error estimation
+
+Out of sample error was estimated as 1 minus fraction of correctly predictions among all predictions.
+
+```{r}
+# true accuracy of the predicted model
+outOfSampleAcc <- round((sum(pred == test$classe)/length(pred))*100, digits = 2)
+outOfSampleAcc
+outOfSampleError <- round((1-(sum(pred == test$classe)/length(pred)))*100, digits = 2)
+outOfSampleError
+```
+
+Out of sample error was low in test dataset (`r outOfSampleError`%).
+
 ##Predicting values of validation set
+After performing prediction on test data, final set of prediction was made on validation dataset containing 20 cases.
 
 ```{r}
 set.seed(17)
@@ -78,10 +96,10 @@ answers <- as.character(valid3$classe)
 
 pml_write_files(answers)
 answers
-
 ```
 
 ##Conclusion
+According to the results of current project, it is possible to accurately predict whether exercice will be performed correctly. Random forest algorithm was used to predictict exercice outcome. This algorithm is highly accurate, which was confirmed by prediction accuracy in test dataset (`r outOfSampleAcc`%).
 
 ##References
 [1] Ugulino, Wallace, et al. "Wearable computing: accelerometers’ data classification of body postures and movements." Advances in Artificial Intelligence-SBIA 2012. Springer Berlin Heidelberg, 2012. 52-61.

@@ -58,30 +58,19 @@ if (window.hljs && document.readyState && document.readyState === "complete") {
 </div>
 
 
-<div id="abstract" class="section level2">
-<h2>Abstract</h2>
-</div>
 <div id="introduction" class="section level2">
 <h2>Introduction</h2>
-</div>
-<div id="enabling-parallelization" class="section level2">
-<h2>Enabling parallelization</h2>
-<p>Before performing any analysis we</p>
-<pre class="r"><code>library(doParallel);</code></pre>
-<pre><code>## Loading required package: foreach
-## Loading required package: iterators
-## Loading required package: parallel</code></pre>
-<pre class="r"><code>rCluster &lt;- makePSOCKcluster(4);
-registerDoParallel(rCluster);</code></pre>
+<p>Data about personal activity were collected using following devices: Jawbone Up, Nike FuelBand, and Fitbit. For the current project, measurements from accelerometers on the belt, forearm, arm, and dumbell of 6 healthy participantsaged between 20-28 [1]. Participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E). Aim of this project was to predict using available measurements, whether exercices were performed correctly.</p>
 </div>
 <div id="cleaning-data" class="section level2">
 <h2>Cleaning data</h2>
-<p>Data where cleaned by removing variables containing NA values and unnecessary variables (“timestamp”, “X”, “user_name”, “new_window”). Cleaned data contained 54 variables</p>
+<p>Data where cleaned by removing variables containing NA values and unnecessary variables (“timestamp”, “X”, “user_name”, “new_window”).</p>
 <pre class="r"><code>setwd(&quot;~/Documents/Coursera/PracticalMachineLearning/CourseProject&quot;)
 data &lt;- read.csv(&quot;pml-training.csv&quot;, head=T, na.strings=c(&quot;NA&quot;,&quot;&quot;))
 data2 &lt;- data[,colSums(is.na(data)) == 0] 
 removeIndex &lt;- grep(&quot;timestamp|X|user_name|new_window&quot;, names(data2))
 data3 &lt;- data2[, -removeIndex]</code></pre>
+<p>Cleaned data contained 54 variables.</p>
 </div>
 <div id="creating-training-and-testing-datasets" class="section level2">
 <h2>Creating training and testing datasets</h2>
@@ -93,36 +82,68 @@ data3 &lt;- data2[, -removeIndex]</code></pre>
 trainL &lt;- createDataPartition(y=data3$classe, p=0.7, list=FALSE)
 train &lt;- data3[trainL,]
 test &lt;- data3[-trainL,]
-dim(train); dim(test)</code></pre>
+dim(train) </code></pre>
 <pre><code>## [1] 13737    54</code></pre>
+<pre class="r"><code>dim(test)</code></pre>
 <pre><code>## [1] 5885   54</code></pre>
 <p>Training set contained 13737 observations, testing set contained 5885 observations.</p>
 </div>
-<div id="fitting-linear-regression-model" class="section level2">
-<h2>Fitting linear regression model</h2>
+<div id="fitting-random-forest-model" class="section level2">
+<h2>Fitting random forest model</h2>
+<p>Random forest model was fitted on taining data using 4-fold cross-validation. Cross-tabulation of observed and predicted values for testing dataset was also created.</p>
 <pre class="r"><code>set.seed(17)
 modFitAll&lt;- train(classe ~ .,data=train,method=&quot;rf&quot;, trControl = trainControl(method = &quot;cv&quot;, number=4))</code></pre>
 <pre><code>## Loading required package: randomForest
 ## randomForest 4.6-10
 ## Type rfNews() to see new features/changes/bug fixes.</code></pre>
+<pre class="r"><code>print(modFitAll, digits = 3)</code></pre>
+<pre><code>## Random Forest 
+## 
+## 13737 samples
+##    53 predictors
+##     5 classes: 'A', 'B', 'C', 'D', 'E' 
+## 
+## No pre-processing
+## Resampling: Cross-Validated (4 fold) 
+## 
+## Summary of sample sizes: 10301, 10304, 10303, 10303 
+## 
+## Resampling results across tuning parameters:
+## 
+##   mtry  Accuracy  Kappa  Accuracy SD  Kappa SD
+##    2    0.992     0.990  0.001594     0.002016
+##   27    0.997     0.996  0.000647     0.000818
+##   53    0.993     0.991  0.000727     0.000920
+## 
+## Accuracy was used to select the optimal model using  the largest value.
+## The final value used for the model was mtry = 27.</code></pre>
 <pre class="r"><code>pred &lt;- predict(modFitAll, test)
-modFitAll$results</code></pre>
-<pre><code>##   mtry  Accuracy     Kappa   AccuracySD      KappaSD
-## 1    2 0.9919926 0.9898699 0.0011013770 0.0013931410
-## 2   27 0.9965056 0.9955797 0.0007142862 0.0009034907
-## 3   53 0.9927203 0.9907913 0.0010370931 0.0013119768</code></pre>
-<pre class="r"><code>cfM &lt;- confusionMatrix(pred, test$classe)
+cfM &lt;- confusionMatrix(pred, test$classe)
 cfM$table</code></pre>
 <pre><code>##           Reference
 ## Prediction    A    B    C    D    E
 ##          A 1674    0    0    0    0
-##          B    0 1137    2    0    0
-##          C    0    1 1021    2    0
+##          B    0 1138    2    0    0
+##          C    0    0 1021    2    0
 ##          D    0    1    3  961    2
 ##          E    0    0    0    1 1080</code></pre>
+<p>Best model was selected according to the accuracy value and contained 27 out of 53 predictors. As can be seen from confusion matrix, almost all predictions were correct (5873 correct prediction out of 5885).</p>
+</div>
+<div id="out-of-sample-error-estimation" class="section level2">
+<h2>Out-of-sample error estimation</h2>
+<p>Out of sample error was estimated as 1 minus fraction of correctly predictions among all predictions.</p>
+<pre class="r"><code># true accuracy of the predicted model
+outOfSampleAcc &lt;- round((sum(pred == test$classe)/length(pred))*100, digits = 2)
+outOfSampleAcc</code></pre>
+<pre><code>## [1] 99.81</code></pre>
+<pre class="r"><code>outOfSampleError &lt;- round((1-(sum(pred == test$classe)/length(pred)))*100, digits = 2)
+outOfSampleError</code></pre>
+<pre><code>## [1] 0.19</code></pre>
+<p>Out of sample error was low in test dataset (0.19%).</p>
 </div>
 <div id="predicting-values-of-validation-set" class="section level2">
 <h2>Predicting values of validation set</h2>
+<p>After performing prediction on test data, final set of prediction was made on validation dataset containing 20 cases.</p>
 <pre class="r"><code>set.seed(17)
 valid &lt;- read.csv(&quot;pml-testing.csv&quot;, head=T, na.strings=c(&quot;NA&quot;,&quot;&quot;))
 valid2 &lt;- valid[,colnames(valid)%in%colnames(train)] 
@@ -149,6 +170,7 @@ answers</code></pre>
 </div>
 <div id="conclusion" class="section level2">
 <h2>Conclusion</h2>
+<p>According to the results of current project, it is possible to accurately predict whether exercice will be performed correctly. Random forest algorithm was used to predictict exercice outcome. This algorithm is highly accurate, which was confirmed by prediction accuracy in test dataset (99.81%).</p>
 </div>
 <div id="references" class="section level2">
 <h2>References</h2>
