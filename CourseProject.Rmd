@@ -5,19 +5,40 @@ date: "23.5.2015"
 output: html_document
 ---
 
+##Abstract
+
+##Introduction
+
+##Cleaning data
 https://anastazie.github.io/anastazie/PracticalMachineLearning/CourseProject.html
 
 ```{r}
 setwd("~/Documents/Coursera/PracticalMachineLearning/CourseProject")
-train <- read.csv("pml-training.csv", head=T)
-test <- read.csv("pml-testing.csv", head=T)
+train <- read.csv("pml-training.csv", head=T, na.strings=c("NA",""))
+valid <- read.csv("pml-testing.csv", head=T, na.strings=c("NA",""))
 train2 <- train[,colSums(is.na(train)) == 0] 
 ```
 
-You can also embed plots, for example:
+##Creating training and testing datasets
 
-```{r, echo=FALSE}
-plot(cars)
+```{r}
+library(caret)
+set.seed(17)
+trainL <- createDataPartition(y=train2$classe, p=0.6, list=FALSE)
+train3 <- train2[trainL,]
+test <- train2[-trainL,]
+dim(train3); dim(test)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+##Fitting linear regression model
+
+```{r}
+set.seed(17)
+modFitAll<- train(classe ~ .,data=train3,method="rf", tuneLength=10, trControl = trainControl(method = "cv"))
+pred <- predict(modFitAll, test)
+qplot(classe,pred,data=test)
+```
+##Conclusion
+
+##References
+
